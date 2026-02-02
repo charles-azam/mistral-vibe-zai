@@ -23,7 +23,7 @@ def _make_app(gateway: FakeWhoAmIGateway, config: VibeConfig | None = None) -> V
 async def test_app_shows_upgrade_offer_in_plan_offer_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MISTRAL_API_KEY", "api-key")
+    monkeypatch.setenv("ZAI_API_KEY", "api-key")
     gateway = FakeWhoAmIGateway(
         WhoAmIResponse(
             is_pro_plan=False,
@@ -45,7 +45,7 @@ async def test_app_shows_upgrade_offer_in_plan_offer_message(
 async def test_app_shows_switch_to_pro_key_offer_in_plan_offer_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MISTRAL_API_KEY", "api-key")
+    monkeypatch.setenv("ZAI_API_KEY", "api-key")
     gateway = FakeWhoAmIGateway(
         WhoAmIResponse(
             is_pro_plan=False,

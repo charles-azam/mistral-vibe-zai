@@ -70,11 +70,11 @@ def _create_vibe_home_dir(tmp_path: Path, *sections: dict[str, Any]) -> Path:
     config_file = vibe_home / "config.toml"
     base_config_dict = get_base_config()
 
-    base_config_dict["active_model"] = "devstral-latest"
+    base_config_dict["active_model"] = "glm-4.7"
     if base_config_dict.get("models"):
         for model in base_config_dict["models"]:
-            if model.get("name") == "mistral-vibe-cli-latest":
-                model["alias"] = "devstral-latest"
+            if model.get("name") == "glm-4.7":
+                model["alias"] = "glm-4.7"
 
     if sections:
         for section_dict in sections:
@@ -197,7 +197,7 @@ async def get_acp_agent_loop_process(
 
     env = dict(current_env)
     env.update(mock_env)
-    env["MISTRAL_API_KEY"] = "mock"
+    env["ZAI_API_KEY"] = "mock"
     env["VIBE_HOME"] = str(vibe_home)
 
     process = await asyncio.create_subprocess_exec(

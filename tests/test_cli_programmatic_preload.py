@@ -6,7 +6,7 @@ from tests.mock.mock_backend_factory import mock_backend_factory
 from tests.mock.utils import mock_llm_chunk
 from tests.stubs.fake_backend import FakeBackend
 from vibe.core import run_programmatic
-from vibe.core.config import Backend, SessionLoggingConfig, VibeConfig
+from vibe.core.config import Backend, ModelConfig, ProviderConfig, SessionLoggingConfig, VibeConfig
 from vibe.core.types import LLMMessage, OutputFormat, Role
 
 
@@ -41,6 +41,22 @@ def test_run_programmatic_preload_streaming_is_batched(
         ),
     ):
         cfg = VibeConfig(
+            active_model="devstral-latest",
+            models=[
+                ModelConfig(
+                    name="mistral-vibe-cli-latest",
+                    provider="mistral",
+                    alias="devstral-latest",
+                )
+            ],
+            providers=[
+                ProviderConfig(
+                    name="mistral",
+                    api_base="https://api.mistral.ai/v1",
+                    api_key_env_var="MISTRAL_API_KEY",
+                    backend=Backend.MISTRAL,
+                )
+            ],
             session_logging=SessionLoggingConfig(enabled=False),
             system_prompt_id="tests",
             include_project_context=False,
@@ -102,6 +118,22 @@ def test_run_programmatic_ignores_system_messages_in_previous(
         lambda provider, **kwargs: FakeBackend([mock_llm_chunk(content="Understood.")]),
     ):
         cfg = VibeConfig(
+            active_model="devstral-latest",
+            models=[
+                ModelConfig(
+                    name="mistral-vibe-cli-latest",
+                    provider="mistral",
+                    alias="devstral-latest",
+                )
+            ],
+            providers=[
+                ProviderConfig(
+                    name="mistral",
+                    api_base="https://api.mistral.ai/v1",
+                    api_key_env_var="MISTRAL_API_KEY",
+                    backend=Backend.MISTRAL,
+                )
+            ],
             session_logging=SessionLoggingConfig(enabled=False),
             system_prompt_id="tests",
             include_project_context=False,

@@ -382,6 +382,53 @@ Vibe supports multiple ways to configure your API keys:
 
 **Note**: The `.env` file is specifically for API keys and other provider credentials. General Vibe configuration should be done in `config.toml`.
 
+### Z.ai Provider Setup
+
+To use Z.ai models (including GLM-4.7 with preserved thinking), add a provider and model entry to your `config.toml` and set `ZAI_API_KEY` in your environment or `~/.vibe/.env` file:
+
+```toml
+[[providers]]
+name = "zai-coding"
+api_base = "https://api.z.ai/api/coding/paas/v4"
+api_key_env_var = "ZAI_API_KEY"
+api_style = "zai"
+thinking = { type = "enabled", clear_thinking = false }
+
+# Optional: enable Z.ai web search in-chat
+web_search = { enable = true, search_engine = "search-prime", count = 5, search_result = true, content_size = "high" }
+
+[[models]]
+name = "glm-4.7"
+provider = "zai-coding"
+alias = "glm-4.7"
+# Optional Z.ai request controls
+max_tokens = 2048
+do_sample = true
+top_p = 0.95
+stop = ["</s>"]
+response_format = { type = "json_object" }
+tool_stream = false
+user_id = "user_123456"
+request_id = "req_123456"
+```
+
+Notes:
+
+- `clear_thinking = false` preserves reasoning across turns. Set it to `true` to strip prior reasoning from the next request.
+- `response_format = { type = "json_object" }` forces JSON output for the current request.
+- `request_id` should be unique per request if you set it manually.
+
+You can also point at the standard (non-coding) Z.ai endpoint:
+
+```toml
+[[providers]]
+name = "zai"
+api_base = "https://api.z.ai/api/paas/v4"
+api_key_env_var = "ZAI_API_KEY"
+api_style = "zai"
+thinking = { type = "disabled", clear_thinking = false }
+```
+
 ### Custom System Prompts
 
 You can create custom system prompts to replace the default one (`prompts/cli.md`). Create a markdown file in the `~/.vibe/prompts/` directory with your custom prompt content.

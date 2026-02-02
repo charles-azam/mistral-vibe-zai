@@ -140,6 +140,70 @@ class Backend(StrEnum):
     GENERIC = auto()
 
 
+class ZAIThinkingConfig(BaseModel):
+    type: Literal["enabled", "disabled"] = "enabled"
+    clear_thinking: bool = False
+
+
+class ZAIWebSearchConfig(BaseModel):
+    enable: bool = True
+    search_engine: str = "search-prime"
+    count: int = 5
+    search_domain_filter: str | None = None
+    search_recency_filter: str | None = None
+    search_result: bool = True
+    search_prompt: str | None = None
+    content_size: str | None = "high"
+
+    @field_validator(
+        "search_domain_filter",
+        "search_recency_filter",
+        "search_prompt",
+        "content_size",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_optional_str(cls, v: Any) -> Any:
+        if not isinstance(v, str):
+            return v
+        stripped = v.strip()
+        return stripped or None
+
+    @staticmethod
+    def _stringify(value: bool | int | str) -> str:
+        match value:
+            case bool() as flag:
+                return "True" if flag else "False"
+            case int() as number:
+                return str(number)
+            case _:
+                return str(value)
+
+    def is_enabled(self) -> bool:
+        return bool(self.enable)
+
+    def to_payload(self) -> dict[str, str]:
+        payload: dict[str, str] = {
+            "enable": self._stringify(self.enable),
+            "search_engine": self.search_engine,
+            "count": self._stringify(self.count),
+            "search_result": self._stringify(self.search_result),
+        }
+        if self.search_domain_filter:
+            payload["search_domain_filter"] = self.search_domain_filter
+        if self.search_recency_filter:
+            payload["search_recency_filter"] = self.search_recency_filter
+        if self.search_prompt:
+            payload["search_prompt"] = self.search_prompt
+        if self.content_size:
+            payload["content_size"] = self.content_size
+        return payload
+
+
+class ResponseFormatConfig(BaseModel):
+    type: Literal["text", "json_object"] = "text"
+
+
 class ProviderConfig(BaseModel):
     name: str
     api_base: str
@@ -147,6 +211,8 @@ class ProviderConfig(BaseModel):
     api_style: str = "openai"
     backend: Backend = Backend.GENERIC
     reasoning_field_name: str = "reasoning_content"
+    thinking: ZAIThinkingConfig | None = None
+    web_search: ZAIWebSearchConfig | None = None
 
 
 class _MCPBase(BaseModel):
@@ -250,6 +316,14 @@ class ModelConfig(BaseModel):
     temperature: float = 0.2
     input_price: float = 0.0  # Price per million input tokens
     output_price: float = 0.0  # Price per million output tokens
+    max_tokens: int | None = None
+    do_sample: bool | None = None
+    top_p: float | None = Field(default=None, ge=0.01, le=1.0)
+    stop: list[str] | None = None
+    response_format: ResponseFormatConfig | None = None
+    user_id: str | None = None
+    request_id: str | None = None
+    tool_stream: bool | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -258,6 +332,15 @@ class ModelConfig(BaseModel):
             if "alias" not in data or data["alias"] is None:
                 data["alias"] = data.get("name")
         return data
+
+    @field_validator("stop")
+    @classmethod
+    def _validate_stop(cls, v: list[str] | None) -> list[str] | None:
+        if not v:
+            return v
+        if len(v) > 1:
+            raise ValueError("Only one stop word is supported.")
+        return v
 
 
 DEFAULT_PROVIDERS = [
@@ -268,6 +351,22 @@ DEFAULT_PROVIDERS = [
         backend=Backend.MISTRAL,
     ),
     ProviderConfig(
+        name="zai-coding",
+        api_base="https://api.z.ai/api/coding/paas/v4",
+        api_key_env_var="ZAI_API_KEY",
+        api_style="zai",
+        backend=Backend.GENERIC,
+        thinking=ZAIThinkingConfig(),
+    ),
+    ProviderConfig(
+        name="zai",
+        api_base="https://api.z.ai/api/paas/v4",
+        api_key_env_var="ZAI_API_KEY",
+        api_style="zai",
+        backend=Backend.GENERIC,
+        thinking=ZAIThinkingConfig(type="disabled"),
+    ),
+    ProviderConfig(
         name="llamacpp",
         api_base="http://127.0.0.1:8080/v1",
         api_key_env_var="",  # NOTE: if you wish to use --api-key in llama-server, change this value
@@ -275,6 +374,13 @@ DEFAULT_PROVIDERS = [
 ]
 
 DEFAULT_MODELS = [
+    ModelConfig(
+        name="glm-4.7",
+        provider="zai-coding",
+        alias="glm-4.7",
+        input_price=0.0,
+        output_price=0.0,
+    ),
     ModelConfig(
         name="mistral-vibe-cli-latest",
         provider="mistral",
@@ -300,7 +406,7 @@ DEFAULT_MODELS = [
 
 
 class VibeConfig(BaseSettings):
-    active_model: str = "devstral-2"
+    active_model: str = "glm-4.7"
     textual_theme: str = "terminal"
     vim_keybindings: bool = False
     disable_welcome_banner_animation: bool = False
@@ -571,8 +677,22 @@ class VibeConfig(BaseSettings):
 
     @classmethod
     def dump_config(cls, config: dict[str, Any]) -> None:
+        def drop_none(value: Any) -> Any:
+            match value:
+                case dict() as data:
+                    return {
+                        key: drop_none(val)
+                        for key, val in data.items()
+                        if val is not None
+                    }
+                case list() as items:
+                    return [drop_none(item) for item in items if item is not None]
+                case _:
+                    return value
+
+        sanitized = drop_none(config)
         with CONFIG_FILE.path.open("wb") as f:
-            tomli_w.dump(config, f)
+            tomli_w.dump(sanitized, f)
 
     @classmethod
     def _migrate(cls) -> None:

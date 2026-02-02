@@ -569,6 +569,9 @@ class AgentLoop:
     async def _chat(self, max_tokens: int | None = None) -> LLMChunk:
         active_model = self.config.get_active_model()
         provider = self.config.get_provider_for_model(active_model)
+        effective_max_tokens = (
+            max_tokens if max_tokens is not None else active_model.max_tokens
+        )
 
         available_tools = self.format_handler.get_available_tools(self.tool_manager)
         tool_choice = self.format_handler.get_tool_choice()
@@ -586,7 +589,7 @@ class AgentLoop:
                         "user-agent": get_user_agent(provider.backend),
                         "x-affinity": self.session_id,
                     },
-                    max_tokens=max_tokens,
+                    max_tokens=effective_max_tokens,
                 )
             end_time = time.perf_counter()
 
@@ -615,6 +618,9 @@ class AgentLoop:
     ) -> AsyncGenerator[LLMChunk]:
         active_model = self.config.get_active_model()
         provider = self.config.get_provider_for_model(active_model)
+        effective_max_tokens = (
+            max_tokens if max_tokens is not None else active_model.max_tokens
+        )
 
         available_tools = self.format_handler.get_available_tools(self.tool_manager)
         tool_choice = self.format_handler.get_tool_choice()
@@ -633,7 +639,7 @@ class AgentLoop:
                         "user-agent": get_user_agent(provider.backend),
                         "x-affinity": self.session_id,
                     },
-                    max_tokens=max_tokens,
+                    max_tokens=effective_max_tokens,
                 ):
                     processed_message = (
                         self.format_handler.process_api_response_message(chunk.message)

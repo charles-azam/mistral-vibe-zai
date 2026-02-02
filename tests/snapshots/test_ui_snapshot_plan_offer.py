@@ -19,8 +19,8 @@ from vibe.cli.update_notifier import UpdateCache
 
 class PlanOfferSnapshotApp(BaseSnapshotTestApp):
     def __init__(self, gateway: FakeWhoAmIGateway):
-        self._previous_api_key = os.environ.get("MISTRAL_API_KEY")
-        os.environ["MISTRAL_API_KEY"] = "snapshot-api-key"
+        self._previous_api_key = os.environ.get("ZAI_API_KEY")
+        os.environ["ZAI_API_KEY"] = "snapshot-api-key"
         super().__init__(
             config=default_config(),
             plan_offer_gateway=gateway,
@@ -29,9 +29,9 @@ class PlanOfferSnapshotApp(BaseSnapshotTestApp):
 
     def on_unmount(self) -> None:
         if self._previous_api_key is None:
-            os.environ.pop("MISTRAL_API_KEY", None)
+            os.environ.pop("ZAI_API_KEY", None)
         else:
-            os.environ["MISTRAL_API_KEY"] = self._previous_api_key
+            os.environ["ZAI_API_KEY"] = self._previous_api_key
         return None
 
 

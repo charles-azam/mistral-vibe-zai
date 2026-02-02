@@ -13,20 +13,22 @@ from vibe.core.paths.config_paths import unlock_config_paths
 
 def get_base_config() -> dict[str, Any]:
     return {
-        "active_model": "devstral-latest",
+        "active_model": "glm-4.7",
         "providers": [
             {
-                "name": "mistral",
-                "api_base": "https://api.mistral.ai/v1",
-                "api_key_env_var": "MISTRAL_API_KEY",
-                "backend": "mistral",
+                "name": "zai-coding",
+                "api_base": "https://api.z.ai/api/coding/paas/v4",
+                "api_key_env_var": "ZAI_API_KEY",
+                "api_style": "zai",
+                "backend": "generic",
+                "thinking": {"type": "enabled", "clear_thinking": False},
             }
         ],
         "models": [
             {
-                "name": "mistral-vibe-cli-latest",
-                "provider": "mistral",
-                "alias": "devstral-latest",
+                "name": "glm-4.7",
+                "provider": "zai-coding",
+                "alias": "glm-4.7",
             }
         ],
         "enable_auto_update": False,
@@ -63,7 +65,9 @@ def _unlock_config_paths():
 
 @pytest.fixture(autouse=True)
 def _mock_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ZAI_API_KEY", "mock")
     monkeypatch.setenv("MISTRAL_API_KEY", "mock")
+    monkeypatch.setenv("LECHAT_API_KEY", "mock")
 
 
 @pytest.fixture(autouse=True)

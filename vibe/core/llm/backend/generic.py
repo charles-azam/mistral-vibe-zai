@@ -35,7 +35,7 @@ class APIAdapter(Protocol):
     def prepare_request(
         self,
         *,
-        model_name: str,
+        model: ModelConfig,
         messages: list[LLMMessage],
         temperature: float,
         tools: list[AvailableTool] | None,
@@ -122,7 +122,7 @@ class OpenAIAdapter(APIAdapter):
     def prepare_request(
         self,
         *,
-        model_name: str,
+        model: ModelConfig,
         messages: list[LLMMessage],
         temperature: float,
         tools: list[AvailableTool] | None,
@@ -141,7 +141,7 @@ class OpenAIAdapter(APIAdapter):
         ]
 
         payload = self.build_payload(
-            model_name, converted_messages, temperature, tools, max_tokens, tool_choice
+            model.name, converted_messages, temperature, tools, max_tokens, tool_choice
         )
 
         if enable_streaming:
@@ -192,6 +192,121 @@ class OpenAIAdapter(APIAdapter):
         )
 
         return LLMChunk(message=message, usage=usage)
+
+
+@register_adapter(BACKEND_ADAPTERS, "zai")
+class ZAIAdapter(OpenAIAdapter):
+    endpoint: ClassVar[str] = "/chat/completions"
+
+    def _normalize_tool_choice(
+        self, tool_choice: StrToolChoice | AvailableTool | None
+    ) -> StrToolChoice | AvailableTool | None:
+        if tool_choice == "any":
+            return "auto"
+        return tool_choice
+
+    def _convert_messages(
+        self,
+        messages: list[LLMMessage],
+        field_name: str,
+        *,
+        clear_thinking: bool,
+    ) -> list[dict[str, Any]]:
+        converted = []
+        for msg in messages:
+            msg_dict = msg.model_dump(exclude_none=True, exclude={"message_id"})
+            if clear_thinking:
+                msg_dict.pop("reasoning_content", None)
+            converted.append(self._reasoning_to_api(msg_dict, field_name))
+        return converted
+
+    def _inject_thinking(
+        self, payload: dict[str, Any], provider: ProviderConfig
+    ) -> None:
+        if not (thinking := getattr(provider, "thinking", None)):
+            return
+        payload["thinking"] = thinking.model_dump(exclude_none=True)
+
+    def _inject_model_options(self, payload: dict[str, Any], model: ModelConfig) -> None:
+        if model.do_sample is not None:
+            payload["do_sample"] = model.do_sample
+        if model.top_p is not None:
+            payload["top_p"] = model.top_p
+        if model.stop:
+            payload["stop"] = model.stop
+        if model.response_format is not None:
+            payload["response_format"] = model.response_format.model_dump(
+                exclude_none=True
+            )
+        if model.user_id:
+            payload["user_id"] = model.user_id
+        if model.request_id:
+            payload["request_id"] = model.request_id
+        if model.tool_stream is not None:
+            payload["tool_stream"] = model.tool_stream
+
+    def _inject_web_search(
+        self, payload: dict[str, Any], provider: ProviderConfig
+    ) -> None:
+        if not (web_search := getattr(provider, "web_search", None)):
+            return
+        if hasattr(web_search, "is_enabled") and not web_search.is_enabled():
+            return
+
+        tool_payload = (
+            web_search.to_payload()
+            if hasattr(web_search, "to_payload")
+            else web_search
+        )
+        if not tool_payload:
+            return
+
+        tools_payload = payload.get("tools")
+        if tools_payload is None:
+            tools_payload = []
+            payload["tools"] = tools_payload
+
+        tools_payload.append({"type": "web_search", "web_search": tool_payload})
+
+    def prepare_request(
+        self,
+        *,
+        model: ModelConfig,
+        messages: list[LLMMessage],
+        temperature: float,
+        tools: list[AvailableTool] | None,
+        max_tokens: int | None,
+        tool_choice: StrToolChoice | AvailableTool | None,
+        enable_streaming: bool,
+        provider: ProviderConfig,
+        api_key: str | None = None,
+    ) -> PreparedRequest:
+        field_name = provider.reasoning_field_name
+        thinking = getattr(provider, "thinking", None)
+        clear_thinking = bool(getattr(thinking, "clear_thinking", False))
+        converted_messages = self._convert_messages(
+            messages, field_name, clear_thinking=clear_thinking
+        )
+
+        payload = self.build_payload(
+            model.name,
+            converted_messages,
+            temperature,
+            tools,
+            max_tokens,
+            self._normalize_tool_choice(tool_choice),
+        )
+        self._inject_thinking(payload, provider)
+        self._inject_model_options(payload, model)
+        self._inject_web_search(payload, provider)
+
+        if enable_streaming:
+            payload["stream"] = True
+
+        headers = self.build_headers(api_key)
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+        return PreparedRequest(self.endpoint, headers, body)
 
 
 class GenericBackend:
@@ -260,7 +375,7 @@ class GenericBackend:
         adapter = BACKEND_ADAPTERS[api_style]
 
         endpoint, headers, body = adapter.prepare_request(
-            model_name=model.name,
+            model=model,
             messages=messages,
             temperature=temperature,
             tools=tools,
@@ -325,7 +440,7 @@ class GenericBackend:
         adapter = BACKEND_ADAPTERS[api_style]
 
         endpoint, headers, body = adapter.prepare_request(
-            model_name=model.name,
+            model=model,
             messages=messages,
             temperature=temperature,
             tools=tools,
