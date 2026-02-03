@@ -1,9 +1,7 @@
-# Mistral Vibe
+# Mistral Vibe ZAI Fork
 
-[![PyPI Version](https://img.shields.io/pypi/v/mistral-vibe)](https://pypi.org/project/mistral-vibe)
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/release/python-3120/)
-[![CI Status](https://github.com/mistralai/mistral-vibe/actions/workflows/ci.yml/badge.svg)](https://github.com/mistralai/mistral-vibe/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/mistralai/mistral-vibe)](https://github.com/mistralai/mistral-vibe/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/charles-azam/mistral-vibe-zai)](https://github.com/charles-azam/mistral-vibe-zai/blob/main/LICENSE)
 
 ```
 ██████████████████░░
@@ -17,9 +15,12 @@
 ██████████████████░░
 ```
 
-**Mistral's open-source CLI coding assistant.**
+**Mistral's open-source CLI coding assistant - ZAI Edition**
 
-Mistral Vibe is a command-line coding assistant powered by Mistral's models. It provides a conversational interface to your codebase, allowing you to use natural language to explore, modify, and interact with your projects through a powerful set of tools.
+This is a fork of Mistral Vibe adapted to support **ZAI's GLM-4.7 API** with preserved thinking capabilities. It provides a command-line coding assistant powered by ZAI's models, maintaining all the features of the original Mistral Vibe while adding support for ZAI's advanced reasoning and web search capabilities.
+
+> [!NOTE]
+> This fork is specifically optimized for ZAI's API endpoints and thinking features. See the [AGENTS.md](AGENTS.md) file for detailed ZAI API documentation.
 
 > [!WARNING]
 > Mistral Vibe works on Windows, but we officially support and target UNIX environments.
@@ -29,7 +30,7 @@ Mistral Vibe is a command-line coding assistant powered by Mistral's models. It 
 **Linux and macOS**
 
 ```bash
-curl -LsSf https://mistral.ai/vibe/install.sh | bash
+curl -LsSf https://raw.githubusercontent.com/charles-azam/mistral-vibe-zai/main/scripts/install.sh | bash
 ```
 
 **Windows**
@@ -39,19 +40,38 @@ First, install uv
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-Then, use uv command below.
+Then, use the uv command below.
 
 ### Using uv
 
 ```bash
-uv tool install mistral-vibe
+uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git
 ```
 
 ### Using pip
 
 ```bash
-pip install mistral-vibe
+pip install git+https://github.com/charles-azam/mistral-vibe-zai.git
 ```
+
+> [!TIP]
+> The one-line installation automatically installs `uv` if not present, then installs the ZAI fork from GitHub.
+
+## What's Different in This Fork?
+
+This fork adds native support for **ZAI's API** with the following enhancements:
+
+- ✨ **GLM-4.7 with Preserved Thinking**: Full support for ZAI's thinking mode with reasoning context preservation across turns
+- 🔍 **Web Search Integration**: Built-in web search capabilities via ZAI's search API (in-chat search with LLM processing)
+- 🎯 **Optimized API Endpoints**: Pre-configured for ZAI's coding-specific endpoint with thinking enabled by default
+- 📊 **Turn-level Thinking Control**: Toggle reasoning mode on/off per request for optimal token usage
+- 🔧 **ZAI-specific Configuration**: Additional settings for `do_sample`, `top_p`, `tool_stream`, and more
+
+See [AGENTS.md](AGENTS.md) for complete ZAI API documentation, including:
+- Endpoint differences (coding vs standard API)
+- Thinking configuration (`enabled`/`disabled`, preserved vs cleared)
+- Web search options and MCP server setup
+- Tool calling with interleaved reasoning
 
 ## Table of Contents
 
@@ -170,19 +190,21 @@ Most modern terminals should work, but older or minimal terminal emulators may h
 
 ## Quick Start
 
-1. Navigate to your project's root directory:
+1. **Get your ZAI API key**: Sign up at [z.ai](https://z.ai) to obtain your API key.
+
+2. Navigate to your project's root directory:
 
    ```bash
    cd /path/to/your/project
    ```
 
-2. Run Vibe:
+3. Run Vibe:
 
    ```bash
    vibe
    ```
 
-3. If this is your first time running Vibe, it will:
+4. If this is your first time running Vibe, it will:
 
    - Create a default configuration file at `~/.vibe/config.toml`
    - Prompt you to enter your API key if it's not already configured
@@ -190,7 +212,28 @@ Most modern terminals should work, but older or minimal terminal emulators may h
 
    Alternatively, you can configure your API key separately using `vibe --setup`.
 
-4. Start interacting with the agent!
+5. **Configure ZAI provider** (if not auto-configured): Add ZAI provider to `~/.vibe/config.toml`:
+
+   ```toml
+   [[providers]]
+   name = "zai-coding"
+   api_base = "https://api.z.ai/api/coding/paas/v4"
+   api_key_env_var = "ZAI_API_KEY"
+   api_style = "zai"
+   thinking = { type = "enabled", clear_thinking = false }
+
+   [[models]]
+   name = "glm-4.7"
+   provider = "zai-coding"
+   alias = "glm-4.7"
+   ```
+
+   Set your API key in `~/.vibe/.env`:
+   ```bash
+   ZAI_API_KEY=your_api_key_here
+   ```
+
+6. Start interacting with the agent!
 
    ```
    > Can you find all instances of the word "TODO" in the project?
@@ -358,7 +401,9 @@ Vibe is configured via a `config.toml` file. It looks for this file first in `./
 
 ### API Key Configuration
 
-To use Vibe, you'll need a Mistral API key. You can obtain one by signing up at [https://console.mistral.ai](https://console.mistral.ai).
+**For ZAI (Recommended)**
+
+To use this fork with ZAI's API, you'll need a ZAI API key. Sign up at [z.ai](https://z.ai) to obtain your API key.
 
 You can configure your API key using `vibe --setup`, or through one of the methods below.
 
@@ -369,16 +414,29 @@ Vibe supports multiple ways to configure your API keys:
 2. **Environment Variables**: Set your API key as an environment variable:
 
    ```bash
-   export MISTRAL_API_KEY="your_mistral_api_key"
+   export ZAI_API_KEY="your_zai_api_key"
    ```
 
 3. **`.env` File**: Create a `.env` file in `~/.vibe/` and add your API keys:
 
    ```bash
-   MISTRAL_API_KEY=your_mistral_api_key
+   ZAI_API_KEY=your_zai_api_key
    ```
 
    Vibe automatically loads API keys from `~/.vibe/.env` on startup. Environment variables take precedence over the `.env` file if both are set.
+
+**For Mistral (Alternative)**
+
+This fork still supports the original Mistral API. You can obtain a Mistral API key at [https://console.mistral.ai](https://console.mistral.ai) and configure it similarly:
+
+```bash
+export MISTRAL_API_KEY="your_mistral_api_key"
+```
+
+Or add it to `~/.vibe/.env`:
+```bash
+MISTRAL_API_KEY=your_mistral_api_key
+```
 
 **Note**: The `.env` file is specifically for API keys and other provider credentials. General Vibe configuration should be done in `config.toml`.
 
@@ -640,7 +698,14 @@ Mistral Vibe can be used in text editors and IDEs that support [Agent Client Pro
 ## Resources
 
 - [CHANGELOG](CHANGELOG.md) - See what's new in each version
-- [CONTRIBUTING](CONTRIBUTING.md) - Guidelines for feedback and bug reports
+- [AGENTS.md](AGENTS.md) - ZAI API documentation and usage guide
+- [Original Mistral Vibe Repository](https://github.com/mistralai/mistral-vibe) - Upstream project
+
+## About This Fork
+
+This is a fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) created to add support for ZAI's GLM-4.7 API with preserved thinking capabilities. The fork maintains compatibility with the original Mistral API while adding ZAI-specific features.
+
+**Upstream Project**: [mistralai/mistral-vibe](https://github.com/mistralai/mistral-vibe)
 
 ## License
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Mistral Vibe Installation Script
-# This script installs uv if not present and then installs mistral-vibe using uv
+# Mistral Vibe ZAI Fork Installation Script
+# This script installs uv if not present and then installs mistral-vibe-zai from GitHub using uv
 
 set -euo pipefail
 
@@ -79,10 +79,10 @@ function install_uv() {
 }
 
 function install_vibe() {
-    info "Installing mistral-vibe from GitHub repository using uv..."
-    uv tool install mistral-vibe
+    info "Installing mistral-vibe-zai from GitHub repository using uv..."
+    uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git
 
-    success "Mistral Vibe installed successfully! (commands: vibe, vibe-acp)"
+    success "Mistral Vibe ZAI Fork installed successfully! (commands: vibe, vibe-acp)"
 }
 
 function main() {
@@ -97,7 +97,8 @@ function main() {
     echo "██████████████████░░"
     echo "██████████████████░░"
     echo
-    echo "Starting Mistral Vibe installation..."
+    echo "Starting Mistral Vibe ZAI Fork installation..."
+    echo "This fork adds support for ZAI's GLM-4.7 API with preserved thinking."
     echo
 
     check_platform
