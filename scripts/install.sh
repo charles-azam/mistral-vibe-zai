@@ -80,7 +80,7 @@ function install_uv() {
 
 function install_vibe() {
     info "Installing mistral-vibe-zai from GitHub repository using uv..."
-    uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git
+    uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git@cazam/rename-to-vibe-zai
 
     success "Mistral Vibe ZAI Fork installed successfully! (commands: vibe, vibe-acp)"
 }
