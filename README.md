@@ -1,448 +1,71 @@
-# Mistral Vibe ZAI Fork
+# Mistral Vibe ZAI -- Mistral Vibe fork for GLM-4.7
 
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/release/python-3120/)
 [![License](https://img.shields.io/github/license/charles-azam/mistral-vibe-zai)](https://github.com/charles-azam/mistral-vibe-zai/blob/main/LICENSE)
 
-```
-██████████████████░░
-██████████████████░░
-████  ██████  ████░░
-████    ██    ████░░
-████          ████░░
-████  ██  ██  ████░░
-██      ██      ██░░
-██████████████████░░
-██████████████████░░
-```
+A fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) adapted to run **ZAI's GLM-4.7** model. Built for benchmarking agentic scaffoldings on [Terminal-Bench 2.0](https://github.com/laude-institute/harbor).
 
-**Mistral's open-source CLI coding assistant - ZAI Edition**
+**Benchmark results:** Scored **0.35** on Terminal-Bench, **the highest score among all agents tested** -- beating Claude Code (0.29), Gemini CLI (0.23), and Codex (0.15) using the same model. See the [full writeup](https://github.com/charles-azam/mistral-vibe-zai) for the architecture comparison. <!-- TODO: replace URL with actual article link -->
 
-This is a fork of Mistral Vibe adapted to support **ZAI's GLM-4.7 API** with preserved thinking capabilities. It provides a command-line coding assistant powered by ZAI's models, maintaining all the features of the original Mistral Vibe while adding support for ZAI's advanced reasoning and web search capabilities.
+## Why this fork won
 
-> [!NOTE]
-> This fork is specifically optimized for ZAI's API endpoints and thinking features. See the [AGENTS.md](AGENTS.md) file for detailed ZAI API documentation.
+Mistral Vibe has the simplest architecture of the three agents I forked, and it performed the best. A few reasons why:
 
-> [!WARNING]
-> Mistral Vibe works on Windows, but we officially support and target UNIX environments.
+- **Middleware pipeline** -- features like auto-compaction, price limits, and plan mode are composable middleware rather than being baked into the core loop. They don't interfere with each other.
+- **Smart `search_replace` error recovery** -- edits require exact matches, but when one fails, `difflib.SequenceMatcher` finds the closest match and feeds a detailed diff back to the model. The agent loop self-corrects on the next turn rather than giving up -- strict edits, forgiving feedback.
+- **Auto-compact context management** -- proactively summarizes the conversation before hitting the context limit, rather than truncating reactively.
+- **Error visibility** -- wraps errors in `<vibe_error>` tags and feeds them back to the model, so it can self-correct.
+- **Clean adapter pattern** -- adding GLM-4.7 support took **13 files changed in one commit**. Compare: Codex required deep Rust type changes, Gemini CLI required an 812-line translation layer across 49 files.
 
-### One-line install (recommended)
+## What I changed
 
-**Linux and macOS**
+Mistral Vibe's Python architecture with clean provider abstractions made this the easiest fork:
+
+- **`ZAIAdapter`** extending `OpenAIAdapter` (via the generic HTTP backend, not the Mistral SDK) -- normalizes tool choice (`"any"` to `"auto"`), injects thinking config and web search into payloads
+- **Configuration models** for ZAI's thinking (`enabled`/`disabled`, preserved vs cleared) and web search features
+- **`ReasoningEvent`** in the agent loop to surface GLM-4.7's chain-of-thought output with batched streaming
+- **Preserved Thinking** -- reasoning content from previous turns fed back into the next request for cache hits
+
+## Quick install
+
+**Linux and macOS:**
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/charles-azam/mistral-vibe-zai/main/scripts/install.sh | bash
 ```
 
-**Windows**
-
-First, install uv
-```bash
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Then, use the uv command below.
-
-### Using uv
+**Using uv:**
 
 ```bash
 uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git
 ```
 
-### Using pip
+**Using pip:**
 
 ```bash
 pip install git+https://github.com/charles-azam/mistral-vibe-zai.git
 ```
 
-> [!TIP]
-> The one-line installation automatically installs `uv` if not present, then installs the ZAI fork from GitHub.
-
-## What's Different in This Fork?
-
-This fork adds native support for **ZAI's API** with the following enhancements:
-
-- ✨ **GLM-4.7 with Preserved Thinking**: Full support for ZAI's thinking mode with reasoning context preservation across turns
-- 🔍 **Web Search Integration**: Built-in web search capabilities via ZAI's search API (in-chat search with LLM processing)
-- 🎯 **Optimized API Endpoints**: Pre-configured for ZAI's coding-specific endpoint with thinking enabled by default
-- 📊 **Turn-level Thinking Control**: Toggle reasoning mode on/off per request for optimal token usage
-- 🔧 **ZAI-specific Configuration**: Additional settings for `do_sample`, `top_p`, `tool_stream`, and more
-
-See [AGENTS.md](AGENTS.md) for complete ZAI API documentation, including:
-- Endpoint differences (coding vs standard API)
-- Thinking configuration (`enabled`/`disabled`, preserved vs cleared)
-- Web search options and MCP server setup
-- Tool calling with interleaved reasoning
-
-## Table of Contents
-
-- [Features](#features)
-  - [Built-in Agents](#built-in-agents)
-  - [Subagents and Task Delegation](#subagents-and-task-delegation)
-  - [Interactive User Questions](#interactive-user-questions)
-- [Terminal Requirements](#terminal-requirements)
-- [Quick Start](#quick-start)
-- [Usage](#usage)
-  - [Interactive Mode](#interactive-mode)
-  - [Trust Folder System](#trust-folder-system)
-  - [Programmatic Mode](#programmatic-mode)
-- [Slash Commands](#slash-commands)
-  - [Built-in Slash Commands](#built-in-slash-commands)
-  - [Custom Slash Commands via Skills](#custom-slash-commands-via-skills)
-- [Skills System](#skills-system)
-  - [Creating Skills](#creating-skills)
-  - [Skill Discovery](#skill-discovery)
-  - [Managing Skills](#managing-skills)
-- [Configuration](#configuration)
-  - [Configuration File Location](#configuration-file-location)
-  - [API Key Configuration](#api-key-configuration)
-  - [Custom System Prompts](#custom-system-prompts)
-  - [Custom Agent Configurations](#custom-agent-configurations)
-  - [Tool Management](#tool-management)
-  - [MCP Server Configuration](#mcp-server-configuration)
-  - [Session Management](#session-management)
-  - [Update Settings](#update-settings)
-  - [Custom Vibe Home Directory](#custom-vibe-home-directory)
-- [Editors/IDEs](#editorsides)
-- [Resources](#resources)
-- [License](#license)
-
-## Features
-
-- **Interactive Chat**: A conversational AI agent that understands your requests and breaks down complex tasks.
-- **Powerful Toolset**: A suite of tools for file manipulation, code searching, version control, and command execution, right from the chat prompt.
-  - Read, write, and patch files (`read_file`, `write_file`, `search_replace`).
-  - Execute shell commands in a stateful terminal (`bash`).
-  - Recursively search code with `grep` (with `ripgrep` support).
-  - Manage a `todo` list to track the agent's work.
-  - Ask interactive questions to gather user input (`ask_user_question`).
-  - Delegate tasks to subagents for parallel work (`task`).
-- **Project-Aware Context**: Vibe automatically scans your project's file structure and Git status to provide relevant context to the agent, improving its understanding of your codebase.
-- **Advanced CLI Experience**: Built with modern libraries for a smooth and efficient workflow.
-  - Autocompletion for slash commands (`/`) and file paths (`@`).
-  - Persistent command history.
-  - Beautiful Themes.
-- **Highly Configurable**: Customize models, providers, tool permissions, and UI preferences through a simple `config.toml` file.
-- **Safety First**: Features tool execution approval.
-- **Multiple Built-in Agents**: Choose from different agent profiles tailored for specific workflows.
-
-### Built-in Agents
-
-Vibe comes with several built-in agent profiles, each designed for different use cases:
-
-- **`default`**: Standard agent that requires approval for tool executions. Best for general use.
-- **`plan`**: Read-only agent for exploration and planning. Auto-approves safe tools like `grep` and `read_file`.
-- **`accept-edits`**: Auto-approves file edits only (`write_file`, `search_replace`). Useful for code refactoring.
-- **`auto-approve`**: Auto-approves all tool executions. Use with caution.
-
-Use the `--agent` flag to select a different agent:
-
-```bash
-vibe --agent plan
-```
-
-### Subagents and Task Delegation
-
-Vibe supports subagents for delegating tasks. Subagents run independently and can perform specialized work without user interaction, preventing the context from being overloaded.
-
-The `task` tool allows the agent to delegate work to subagents:
-
-```
-> Can you explore the codebase structure while I work on something else?
-
-🤖 I'll use the task tool to delegate this to the explore subagent.
-
-> task(task="Analyze the project structure and architecture", agent="explore")
-```
-
-Create custom subagents by adding `agent_type = "subagent"` to your agent configuration. Vibe comes with a built-in subagent called `explore`, a read-only subagent for codebase exploration used internally for delegation.
-
-### Interactive User Questions
-
-The `ask_user_question` tool allows the agent to ask you clarifying questions during its work. This enables more interactive and collaborative workflows.
-
-```
-> Can you help me refactor this function?
-
-🤖 I need to understand your requirements better before proceeding.
-
-> ask_user_question(questions=[{
-    "question": "What's the main goal of this refactoring?",
-    "options": [
-        {"label": "Performance", "description": "Make it run faster"},
-        {"label": "Readability", "description": "Make it easier to understand"},
-        {"label": "Maintainability", "description": "Make it easier to modify"}
-    ]
-}])
-```
-
-The agent can ask multiple questions at once, displayed as tabs. Each question supports 2-4 options plus an automatic "Other" option for free text responses.
-
-## Terminal Requirements
-
-Vibe's interactive interface requires a modern terminal emulator. Recommended terminal emulators include:
-
-- **WezTerm** (cross-platform)
-- **Alacritty** (cross-platform)
-- **Ghostty** (Linux and macOS)
-- **Kitty** (Linux and macOS)
-
-Most modern terminals should work, but older or minimal terminal emulators may have display issues.
-
-## Quick Start
-
-1. **Get your ZAI API key**: Sign up at [z.ai](https://z.ai) to obtain your API key.
-
-2. Navigate to your project's root directory:
-
-   ```bash
-   cd /path/to/your/project
-   ```
-
-3. Run Vibe:
-
-   ```bash
-   vibe
-   ```
-
-4. If this is your first time running Vibe, it will:
-
-   - Create a default configuration file at `~/.vibe/config.toml`
-   - Prompt you to enter your API key if it's not already configured
-   - Save your API key to `~/.vibe/.env` for future use
-
-   Alternatively, you can configure your API key separately using `vibe --setup`.
-
-5. **Configure ZAI provider** (if not auto-configured): Add ZAI provider to `~/.vibe/config.toml`:
-
-   ```toml
-   [[providers]]
-   name = "zai-coding"
-   api_base = "https://api.z.ai/api/coding/paas/v4"
-   api_key_env_var = "ZAI_API_KEY"
-   api_style = "zai"
-   thinking = { type = "enabled", clear_thinking = false }
-
-   [[models]]
-   name = "glm-4.7"
-   provider = "zai-coding"
-   alias = "glm-4.7"
-   ```
-
-   Set your API key in `~/.vibe/.env`:
-   ```bash
-   ZAI_API_KEY=your_api_key_here
-   ```
-
-6. Start interacting with the agent!
-
-   ```
-   > Can you find all instances of the word "TODO" in the project?
-
-   🤖 The user wants to find all instances of "TODO". The `grep` tool is perfect for this. I will use it to search the current directory.
-
-   > grep(pattern="TODO", path=".")
-
-   ... (grep tool output) ...
-
-   🤖 I found the following "TODO" comments in your project.
-   ```
-
 ## Usage
 
-### Interactive Mode
-
-Simply run `vibe` to enter the interactive chat loop.
-
-- **Multi-line Input**: Press `Ctrl+J` or `Shift+Enter` for select terminals to insert a newline.
-- **File Paths**: Reference files in your prompt using the `@` symbol for smart autocompletion (e.g., `> Read the file @src/agent.py`).
-- **Shell Commands**: Prefix any command with `!` to execute it directly in your shell, bypassing the agent (e.g., `> !ls -l`).
-- **External Editor**: Press `Ctrl+G` to edit your current input in an external editor.
-- **Tool Output Toggle**: Press `Ctrl+O` to toggle the tool output view.
-- **Todo View Toggle**: Press `Ctrl+T` to toggle the todo list view.
-- **Auto-Approve Toggle**: Press `Shift+Tab` to toggle auto-approve mode on/off.
-
-You can start Vibe with a prompt using the following command:
-
 ```bash
-vibe "Refactor the main function in cli/main.py to be more modular."
+export ZAI_API_KEY="your_key"
+
+# Interactive (default: GLM-4.7 with thinking enabled)
+vibe
+
+# With a specific agent profile
+vibe --agent plan          # read-only exploration
+vibe --agent auto-approve  # auto-approve all tools
+
+# Programmatic mode
+vibe --prompt "Fix the bug in main.py" --max-turns 10 --output json
+
+# Delegate to a subagent
+# Inside vibe, the model can use the `task` tool to spawn explore/plan subagents
 ```
 
-**Note**: The `--auto-approve` flag automatically approves all tool executions without prompting. In interactive mode, you can also toggle auto-approve on/off using `Shift+Tab`.
-
-### Trust Folder System
-
-Vibe includes a trust folder system to ensure you only run the agent in directories you trust. When you first run Vibe in a new directory which contains a `.vibe` subfolder, it may ask you to confirm whether you trust the folder.
-
-Trusted folders are remembered for future sessions. You can manage trusted folders through its configuration file `~/.vibe/trusted_folders.toml`.
-
-This safety feature helps prevent accidental execution in sensitive directories.
-
-### Programmatic Mode
-
-You can run Vibe non-interactively by piping input or using the `--prompt` flag. This is useful for scripting.
-
-```bash
-vibe --prompt "Refactor the main function in cli/main.py to be more modular."
-```
-
-By default, it uses `auto-approve` mode.
-
-#### Programmatic Mode Options
-
-When using `--prompt`, you can specify additional options:
-
-- **`--max-turns N`**: Limit the maximum number of assistant turns. The session will stop after N turns.
-- **`--max-price DOLLARS`**: Set a maximum cost limit in dollars. The session will be interrupted if the cost exceeds this limit.
-- **`--enabled-tools TOOL`**: Enable specific tools. In programmatic mode, this disables all other tools. Can be specified multiple times. Supports exact names, glob patterns (e.g., `bash*`), or regex with `re:` prefix (e.g., `re:^serena_.*$`).
-- **`--output FORMAT`**: Set the output format. Options:
-  - `text` (default): Human-readable text output
-  - `json`: All messages as JSON at the end
-  - `streaming`: Newline-delimited JSON per message
-
-Example:
-
-```bash
-vibe --prompt "Analyze the codebase" --max-turns 5 --max-price 1.0 --output json
-```
-
-## Slash Commands
-
-Use slash commands for meta-actions and configuration changes during a session.
-
-### Built-in Slash Commands
-
-Vibe provides several built-in slash commands. Use slash commands by typing them in the input box:
-
-```
-> /help
-```
-
-### Custom Slash Commands via Skills
-
-You can define your own slash commands through the skills system. Skills are reusable components that extend Vibe's functionality.
-
-To create a custom slash command:
-
-1. Create a skill directory with a `SKILL.md` file
-2. Set `user-invocable = true` in the skill metadata
-3. Define the command logic in your skill
-
-Example skill metadata:
-
-```markdown
----
-name: my-skill
-description: My custom skill with slash commands
-user-invocable: true
----
-```
-
-Custom slash commands appear in the autocompletion menu alongside built-in commands.
-
-## Skills System
-
-Vibe's skills system allows you to extend functionality through reusable components. Skills can add new tools, slash commands, and specialized behaviors.
-
-Vibe follows the [Agent Skills specification](https://agentskills.io/specification) for skill format and structure.
-
-### Creating Skills
-
-Skills are defined in directories with a `SKILL.md` file containing metadata in YAML frontmatter. For example, `~/.vibe/skills/code-review/SKILL.md`:
-
-```markdown
----
-name: code-review
-description: Perform automated code reviews
-license: MIT
-compatibility: Python 3.12+
-user-invocable: true
-allowed-tools:
-  - read_file
-  - grep
-  - ask_user_question
----
-
-# Code Review Skill
-
-This skill helps analyze code quality and suggest improvements.
-```
-
-### Skill Discovery
-
-Vibe discovers skills from multiple locations:
-
-1. **Global skills directory**: `~/.vibe/skills/`
-2. **Local project skills**: `.vibe/skills/` in your project
-3. **Custom paths**: Configured in `config.toml`
-
-```toml
-skill_paths = ["/path/to/custom/skills"]
-```
-
-### Managing Skills
-
-Enable or disable skills using patterns in your configuration:
-
-```toml
-# Enable specific skills
-enabled_skills = ["code-review", "test-*"]
-
-# Disable specific skills
-disabled_skills = ["experimental-*"]
-```
-
-Skills support the same pattern matching as tools (exact names, glob patterns, and regex).
-
-## Configuration
-
-### Configuration File Location
-
-Vibe is configured via a `config.toml` file. It looks for this file first in `./.vibe/config.toml` and then falls back to `~/.vibe/config.toml`.
-
-### API Key Configuration
-
-**For ZAI (Recommended)**
-
-To use this fork with ZAI's API, you'll need a ZAI API key. Sign up at [z.ai](https://z.ai) to obtain your API key.
-
-You can configure your API key using `vibe --setup`, or through one of the methods below.
-
-Vibe supports multiple ways to configure your API keys:
-
-1. **Interactive Setup (Recommended for first-time users)**: When you run Vibe for the first time or if your API key is missing, Vibe will prompt you to enter it. The key will be securely saved to `~/.vibe/.env` for future sessions.
-
-2. **Environment Variables**: Set your API key as an environment variable:
-
-   ```bash
-   export ZAI_API_KEY="your_zai_api_key"
-   ```
-
-3. **`.env` File**: Create a `.env` file in `~/.vibe/` and add your API keys:
-
-   ```bash
-   ZAI_API_KEY=your_zai_api_key
-   ```
-
-   Vibe automatically loads API keys from `~/.vibe/.env` on startup. Environment variables take precedence over the `.env` file if both are set.
-
-**For Mistral (Alternative)**
-
-This fork still supports the original Mistral API. You can obtain a Mistral API key at [https://console.mistral.ai](https://console.mistral.ai) and configure it similarly:
-
-```bash
-export MISTRAL_API_KEY="your_mistral_api_key"
-```
-
-Or add it to `~/.vibe/.env`:
-```bash
-MISTRAL_API_KEY=your_mistral_api_key
-```
-
-**Note**: The `.env` file is specifically for API keys and other provider credentials. General Vibe configuration should be done in `config.toml`.
-
-### Z.ai Provider Setup
-
-To use Z.ai models (including GLM-4.7 with preserved thinking), add a provider and model entry to your `config.toml` and set `ZAI_API_KEY` in your environment or `~/.vibe/.env` file:
+### ZAI provider config (`~/.vibe/config.toml`)
 
 ```toml
 [[providers]]
@@ -452,272 +75,39 @@ api_key_env_var = "ZAI_API_KEY"
 api_style = "zai"
 thinking = { type = "enabled", clear_thinking = false }
 
-# Optional: enable Z.ai web search in-chat
-web_search = { enable = true, search_engine = "search-prime", count = 5, search_result = true, content_size = "high" }
-
 [[models]]
 name = "glm-4.7"
 provider = "zai-coding"
 alias = "glm-4.7"
-# Optional Z.ai request controls
-max_tokens = 2048
-do_sample = true
-top_p = 0.95
-stop = ["</s>"]
-response_format = { type = "json_object" }
-tool_stream = false
-user_id = "user_123456"
-request_id = "req_123456"
 ```
 
-Notes:
+## Features
 
-- `clear_thinking = false` preserves reasoning across turns. Set it to `true` to strip prior reasoning from the next request.
-- `response_format = { type = "json_object" }` forces JSON output for the current request.
-- `request_id` should be unique per request if you set it manually.
+All features from upstream Mistral Vibe, plus ZAI-specific additions:
 
-You can also point at the standard (non-coding) Z.ai endpoint:
+**Tools:** `bash` (tree-sitter parsed), `read_file`, `write_file`, `search_replace` (exact match, fuzzy error feedback), `grep` (ripgrep), `ask_user_question`, `todo`, `task` (subagent delegation) + MCP servers
 
-```toml
-[[providers]]
-name = "zai"
-api_base = "https://api.z.ai/api/paas/v4"
-api_key_env_var = "ZAI_API_KEY"
-api_style = "zai"
-thinking = { type = "disabled", clear_thinking = false }
-```
+**Agent profiles:** `default` (approval required), `plan` (read-only), `accept-edits` (auto-approve edits), `auto-approve` (auto-approve all), `explore` (subagent for codebase exploration)
 
-### Custom System Prompts
+**Context management:** Auto-compact middleware triggers LLM summarization at token threshold. Proactive, not reactive.
 
-You can create custom system prompts to replace the default one (`prompts/cli.md`). Create a markdown file in the `~/.vibe/prompts/` directory with your custom prompt content.
+**Subagents:** `task` tool spawns independent `AgentLoop` instances. Custom agents via TOML in `~/.vibe/agents/`.
 
-To use a custom system prompt, set the `system_prompt_id` in your configuration to match the filename (without the `.md` extension):
+**Skills system:** Markdown-based skills with YAML frontmatter in `~/.vibe/skills/` or `.vibe/skills/`. Supports slash commands.
 
-```toml
-# Use a custom system prompt
-system_prompt_id = "my_custom_prompt"
-```
+**MCP support:** HTTP, Streamable-HTTP, and STDIO transports. Configure in `config.toml`.
 
-This will load the prompt from `~/.vibe/prompts/my_custom_prompt.md`.
+**Sessions:** JSONL session logging with `--continue` / `--resume` for session persistence.
 
-### Custom Agent Configurations
+**ACP support:** Works with editors/IDEs that support [Agent Client Protocol](https://agentclientprotocol.com/overview/clients). See [ACP setup docs](docs/acp-setup.md).
 
-You can create custom agent configurations for specific use cases (e.g., red-teaming, specialized tasks) by adding agent-specific TOML files in the `~/.vibe/agents/` directory.
+## Related
 
-To use a custom agent, run Vibe with the `--agent` flag:
-
-```bash
-vibe --agent my_custom_agent
-```
-
-Vibe will look for a file named `my_custom_agent.toml` in the agents directory and apply its configuration.
-
-Example custom agent configuration (`~/.vibe/agents/redteam.toml`):
-
-```toml
-# Custom agent configuration for red-teaming
-active_model = "devstral-2"
-system_prompt_id = "redteam"
-
-# Disable some tools for this agent
-disabled_tools = ["search_replace", "write_file"]
-
-# Override tool permissions for this agent
-[tools.bash]
-permission = "always"
-
-[tools.read_file]
-permission = "always"
-```
-
-Note: This implies that you have set up a redteam prompt named `~/.vibe/prompts/redteam.md`.
-
-### Tool Management
-
-#### Enable/Disable Tools with Patterns
-
-You can control which tools are active using `enabled_tools` and `disabled_tools`.
-These fields support exact names, glob patterns, and regular expressions.
-
-Examples:
-
-```toml
-# Only enable tools that start with "serena_" (glob)
-enabled_tools = ["serena_*"]
-
-# Regex (prefix with re:) — matches full tool name (case-insensitive)
-enabled_tools = ["re:^serena_.*$"]
-
-# Disable a group with glob; everything else stays enabled
-disabled_tools = ["mcp_*", "grep"]
-```
-
-Notes:
-
-- MCP tool names use underscores, e.g., `serena_list` not `serena.list`.
-- Regex patterns are matched against the full tool name using fullmatch.
-
-### MCP Server Configuration
-
-You can configure MCP (Model Context Protocol) servers to extend Vibe's capabilities. Add MCP server configurations under the `mcp_servers` section:
-
-```toml
-# Example MCP server configurations
-[[mcp_servers]]
-name = "my_http_server"
-transport = "http"
-url = "http://localhost:8000"
-headers = { "Authorization" = "Bearer my_token" }
-api_key_env = "MY_API_KEY_ENV_VAR"
-api_key_header = "Authorization"
-api_key_format = "Bearer {token}"
-
-[[mcp_servers]]
-name = "my_streamable_server"
-transport = "streamable-http"
-url = "http://localhost:8001"
-headers = { "X-API-Key" = "my_api_key" }
-
-[[mcp_servers]]
-name = "fetch_server"
-transport = "stdio"
-command = "uvx"
-args = ["mcp-server-fetch"]
-env = { "DEBUG" = "1", "LOG_LEVEL" = "info" }
-```
-
-Supported transports:
-
-- `http`: Standard HTTP transport
-- `streamable-http`: HTTP transport with streaming support
-- `stdio`: Standard input/output transport (for local processes)
-
-Key fields:
-
-- `name`: A short alias for the server (used in tool names)
-- `transport`: The transport type
-- `url`: Base URL for HTTP transports
-- `headers`: Additional HTTP headers
-- `api_key_env`: Environment variable containing the API key
-- `command`: Command to run for stdio transport
-- `args`: Additional arguments for stdio transport
-- `startup_timeout_sec`: Timeout in seconds for the server to start and initialize (default 10s)
-- `tool_timeout_sec`: Timeout in seconds for tool execution (default 60s)
-- `env`: Environment variables to set for the MCP server of transport type stdio
-
-MCP tools are named using the pattern `{server_name}_{tool_name}` and can be configured with permissions like built-in tools:
-
-```toml
-# Configure permissions for specific MCP tools
-[tools.fetch_server_get]
-permission = "always"
-
-[tools.my_http_server_query]
-permission = "ask"
-```
-
-MCP server configurations support additional features:
-
-- **Environment variables**: Set environment variables for MCP servers
-- **Custom timeouts**: Configure startup and tool execution timeouts
-
-Example with environment variables and timeouts:
-
-```toml
-[[mcp_servers]]
-name = "my_server"
-transport = "http"
-url = "http://localhost:8000"
-env = { "DEBUG" = "1", "LOG_LEVEL" = "info" }
-startup_timeout_sec = 15
-tool_timeout_sec = 120
-```
-
-### Session Management
-
-#### Session Continuation and Resumption
-
-Vibe supports continuing from previous sessions:
-
-- **`--continue`** or **`-c`**: Continue from the most recent saved session
-- **`--resume SESSION_ID`**: Resume a specific session by ID (supports partial matching)
-
-```bash
-# Continue from last session
-vibe --continue
-
-# Resume specific session
-vibe --resume abc123
-```
-
-Session logging must be enabled in your configuration for these features to work.
-
-#### Working Directory Control
-
-Use the `--workdir` option to specify a working directory:
-
-```bash
-vibe --workdir /path/to/project
-```
-
-This is useful when you want to run Vibe from a different location than your current directory.
-
-### Update Settings
-
-#### Auto-Update
-
-Vibe includes an automatic update feature that keeps your installation current. This is enabled by default.
-
-To disable auto-updates, add this to your `config.toml`:
-
-```toml
-enable_auto_update = false
-```
-
-### Custom Vibe Home Directory
-
-By default, Vibe stores its configuration in `~/.vibe/`. You can override this by setting the `VIBE_HOME` environment variable:
-
-```bash
-export VIBE_HOME="/path/to/custom/vibe/home"
-```
-
-This affects where Vibe looks for:
-
-- `config.toml` - Main configuration
-- `.env` - API keys
-- `agents/` - Custom agent configurations
-- `prompts/` - Custom system prompts
-- `tools/` - Custom tools
-- `logs/` - Session logs
-
-## Editors/IDEs
-
-Mistral Vibe can be used in text editors and IDEs that support [Agent Client Protocol](https://agentclientprotocol.com/overview/clients). See the [ACP Setup documentation](docs/acp-setup.md) for setup instructions for various editors and IDEs.
-
-## Resources
-
-- [CHANGELOG](CHANGELOG.md) - See what's new in each version
-- [AGENTS.md](AGENTS.md) - ZAI API documentation and usage guide
-- [Original Mistral Vibe Repository](https://github.com/mistralai/mistral-vibe) - Upstream project
-
-## About This Fork
-
-This is a fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) created to add support for ZAI's GLM-4.7 API with preserved thinking capabilities. The fork maintains compatibility with the original Mistral API while adding ZAI-specific features.
-
-**Upstream Project**: [mistralai/mistral-vibe](https://github.com/mistralai/mistral-vibe)
+- [Article: I Read the Source Code of Codex, Gemini CLI, and Mistral Vibe](https://github.com/charles-azam/mistral-vibe-zai) -- full benchmark writeup and architecture comparison <!-- TODO: replace URL with actual article link -->
+- [codex-zai](https://github.com/charles-azam/codex-zai) -- Codex fork (scored 0.15)
+- [gemini-cli-zai](https://github.com/charles-azam/gemini-cli-zai) -- Gemini CLI fork (scored 0.23)
+- [Upstream Mistral Vibe](https://github.com/mistralai/mistral-vibe) -- original project
 
 ## License
 
-Copyright 2025 Mistral AI
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the [LICENSE](LICENSE) file for the full license text.
+Copyright 2025 Mistral AI. Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
