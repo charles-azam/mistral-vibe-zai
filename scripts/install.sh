@@ -80,7 +80,7 @@ function install_uv() {
 
 function install_vibe() {
     info "Installing mistral-vibe-zai from GitHub repository using uv..."
-    uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git
+    uv tool install git+https://github.com/charles-azam/mistral-vibe-zai.git@cazam/rename-to-vibe-zai
 
     success "Mistral Vibe ZAI Fork installed successfully! (commands: vibe, vibe-acp)"
 }
@@ -111,16 +111,16 @@ function main() {
 
     install_vibe
 
-    if command -v vibe &> /dev/null; then
+    if command -v vibe-zai &> /dev/null; then
         success "Installation completed successfully!"
         echo
-        echo "You can now run vibe with:"
-        echo "  vibe"
+        echo "You can now run vibe-zai with:"
+        echo "  vibe-zai"
         echo
         echo "Or for ACP mode:"
-        echo "  vibe-acp"
+        echo "  vibe-zai-acp"
     else
-        error "Installation completed but 'vibe' command not found"
+        error "Installation completed but 'vibe-zai' command not found"
         error "Please check your installation and PATH settings"
         exit 1
     fi

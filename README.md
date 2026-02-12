@@ -1,9 +1,9 @@
-# Mistral Vibe ZAI -- Mistral Vibe fork for GLM-4.7
+# Mistral Vibe ZAI -- Mistral Vibe fork for GLM-5
 
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/release/python-3120/)
 [![License](https://img.shields.io/github/license/charles-azam/mistral-vibe-zai)](https://github.com/charles-azam/mistral-vibe-zai/blob/main/LICENSE)
 
-A fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) adapted to run **ZAI's GLM-4.7** model. Built for benchmarking agentic scaffoldings on [Terminal-Bench 2.0](https://github.com/laude-institute/harbor).
+A fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) adapted to run **ZAI's GLM-5** model (default, with GLM-4.7 also available). Built for benchmarking agentic scaffoldings on [Terminal-Bench 2.0](https://github.com/laude-institute/harbor).
 
 **Benchmark results:** Scored **0.35** on Terminal-Bench, **the highest score among all agents tested** -- beating Claude Code (0.29), Gemini CLI (0.23), and Codex (0.15) using the same model. See the [full writeup](https://github.com/charles-azam/mistral-vibe-zai) for the architecture comparison. <!-- TODO: replace URL with actual article link -->
 
@@ -51,7 +51,7 @@ pip install git+https://github.com/charles-azam/mistral-vibe-zai.git
 ```bash
 export ZAI_API_KEY="your_key"
 
-# Interactive (default: GLM-4.7 with thinking enabled)
+# Interactive (default: GLM-5 with thinking enabled)
 vibe
 
 # With a specific agent profile
@@ -76,10 +76,12 @@ api_style = "zai"
 thinking = { type = "enabled", clear_thinking = false }
 
 [[models]]
-name = "glm-4.7"
+name = "glm-5"
 provider = "zai-coding"
-alias = "glm-4.7"
+alias = "glm-5"
 ```
+
+To use GLM-4.7 instead, set `active_model = "glm-4.7"` in your config (it's included as a built-in model).
 
 ## Features
 

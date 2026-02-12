@@ -375,6 +375,13 @@ DEFAULT_PROVIDERS = [
 
 DEFAULT_MODELS = [
     ModelConfig(
+        name="glm-5",
+        provider="zai-coding",
+        alias="glm-5",
+        input_price=0.0,
+        output_price=0.0,
+    ),
+    ModelConfig(
         name="glm-4.7",
         provider="zai-coding",
         alias="glm-4.7",
@@ -406,7 +413,7 @@ DEFAULT_MODELS = [
 
 
 class VibeConfig(BaseSettings):
-    active_model: str = "glm-4.7"
+    active_model: str = "glm-5"
     textual_theme: str = "terminal"
     vim_keybindings: bool = False
     disable_welcome_banner_animation: bool = False
