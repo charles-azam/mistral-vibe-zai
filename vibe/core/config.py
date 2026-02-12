@@ -382,13 +382,6 @@ DEFAULT_MODELS = [
         output_price=0.0,
     ),
     ModelConfig(
-        name="glm-4.7",
-        provider="zai-coding",
-        alias="glm-4.7",
-        input_price=0.0,
-        output_price=0.0,
-    ),
-    ModelConfig(
         name="mistral-vibe-cli-latest",
         provider="mistral",
         alias="devstral-2",
