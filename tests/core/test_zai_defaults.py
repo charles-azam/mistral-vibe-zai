@@ -7,11 +7,11 @@ import pytest
 from vibe.core.config import MissingAPIKeyError, VibeConfig
 
 
-def test_default_active_model_is_glm_47() -> None:
+def test_default_active_model_is_glm_5() -> None:
     config = VibeConfig()
-    assert config.active_model == "glm-4.7"
+    assert config.active_model == "glm-5"
     active_model = config.get_active_model()
-    assert active_model.alias == "glm-4.7"
+    assert active_model.alias == "glm-5"
     provider = config.get_provider_for_model(active_model)
     assert provider.api_key_env_var == "ZAI_API_KEY"
 

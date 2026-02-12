@@ -70,11 +70,11 @@ def _create_vibe_home_dir(tmp_path: Path, *sections: dict[str, Any]) -> Path:
     config_file = vibe_home / "config.toml"
     base_config_dict = get_base_config()
 
-    base_config_dict["active_model"] = "glm-4.7"
+    base_config_dict["active_model"] = "glm-5"
     if base_config_dict.get("models"):
         for model in base_config_dict["models"]:
-            if model.get("name") == "glm-4.7":
-                model["alias"] = "glm-4.7"
+            if model.get("name") == "glm-5":
+                model["alias"] = "glm-5"
 
     if sections:
         for section_dict in sections:

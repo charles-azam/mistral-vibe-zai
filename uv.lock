@@ -672,7 +672,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mistral-vibe"
+name = "mistral-vibe-zai"
 version = "2.0.2"
 source = { editable = "." }
 dependencies = [

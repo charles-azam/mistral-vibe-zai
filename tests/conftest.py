@@ -13,7 +13,7 @@ from vibe.core.paths.config_paths import unlock_config_paths
 
 def get_base_config() -> dict[str, Any]:
     return {
-        "active_model": "glm-4.7",
+        "active_model": "glm-5",
         "providers": [
             {
                 "name": "zai-coding",
@@ -26,9 +26,9 @@ def get_base_config() -> dict[str, Any]:
         ],
         "models": [
             {
-                "name": "glm-4.7",
+                "name": "glm-5",
                 "provider": "zai-coding",
-                "alias": "glm-4.7",
+                "alias": "glm-5",
             }
         ],
         "enable_auto_update": False,

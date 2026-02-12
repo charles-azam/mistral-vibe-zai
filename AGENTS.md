@@ -1,10 +1,10 @@
 # Mistral Vibe ZAI Fork
 
-Fork of Mistral Vibe adapted to use ZAI's GLM-4.7 API for benchmarking.
+Fork of Mistral Vibe adapted to use ZAI's GLM-5 API for benchmarking.
 
 ## Objectives
 
-1. Implement ZAI with thinking capabilities (GLM-4.7)
+1. Implement ZAI with thinking capabilities (GLM-5)
 2. Connect web search to ZAI's API
 
 ---
@@ -37,7 +37,7 @@ Authorization: Bearer $ZAI_API_KEY
 
 **Key Points:**
 
-- `type: "enabled"` (default for GLM-4.7): Model reasons before answering,
+- `type: "enabled"` (default for GLM-5): Model reasons before answering,
   returns `reasoning_content`
 - `type: "disabled"`: Direct answers, no reasoning, faster/cheaper (~2 tokens vs
   ~70+ for same question)
@@ -46,7 +46,7 @@ Authorization: Bearer $ZAI_API_KEY
 - `clear_thinking: true`: Clear reasoning each turn (saves tokens but loses
   context)
 
-**Turn-level Thinking** (GLM-4.7): You can toggle `thinking.type` on each
+**Turn-level Thinking** (GLM-5): You can toggle `thinking.type` on each
 request within the same session:
 
 - Enable for complex planning, debugging, multi-constraint reasoning
