@@ -35,9 +35,9 @@ async def test_zai_payload_includes_model_controls_and_web_search() -> None:
         ),
     )
     model = ModelConfig(
-        name="glm-4.7",
+        name="glm-5",
         provider="zai-coding",
-        alias="glm-4.7",
+        alias="glm-5",
         max_tokens=64,
         do_sample=True,
         top_p=0.9,
@@ -78,7 +78,7 @@ async def test_zai_payload_includes_model_controls_and_web_search() -> None:
     assert route.called
     body = json.loads(route.calls[0].request.content)
 
-    assert body["model"] == "glm-4.7"
+    assert body["model"] == "glm-5"
     assert body["max_tokens"] == 64
     assert body["do_sample"] is True
     assert body["top_p"] == 0.9

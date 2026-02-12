@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/release/python-3120/)
 [![License](https://img.shields.io/github/license/charles-azam/mistral-vibe-zai)](https://github.com/charles-azam/mistral-vibe-zai/blob/main/LICENSE)
 
-A fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) adapted to run **ZAI's GLM-5** model (default, with GLM-4.7 also available). Built for benchmarking agentic scaffoldings on [Terminal-Bench 2.0](https://github.com/laude-institute/harbor).
+A fork of [Mistral Vibe](https://github.com/mistralai/mistral-vibe) adapted to run **ZAI's GLM-5** model. Built for benchmarking agentic scaffoldings on [Terminal-Bench 2.0](https://github.com/laude-institute/harbor).
 
 **Benchmark results:** Scored **0.35** on Terminal-Bench, **the highest score among all agents tested** -- beating Claude Code (0.29), Gemini CLI (0.23), and Codex (0.15) using the same model. See the [full writeup](https://github.com/charles-azam/mistral-vibe-zai) for the architecture comparison. <!-- TODO: replace URL with actual article link -->
 
@@ -15,7 +15,7 @@ Mistral Vibe has the simplest architecture of the three agents I forked, and it 
 - **Smart `search_replace` error recovery** -- edits require exact matches, but when one fails, `difflib.SequenceMatcher` finds the closest match and feeds a detailed diff back to the model. The agent loop self-corrects on the next turn rather than giving up -- strict edits, forgiving feedback.
 - **Auto-compact context management** -- proactively summarizes the conversation before hitting the context limit, rather than truncating reactively.
 - **Error visibility** -- wraps errors in `<vibe_error>` tags and feeds them back to the model, so it can self-correct.
-- **Clean adapter pattern** -- adding GLM-4.7 support took **13 files changed in one commit**. Compare: Codex required deep Rust type changes, Gemini CLI required an 812-line translation layer across 49 files.
+- **Clean adapter pattern** -- adding GLM-5 support took **13 files changed in one commit**. Compare: Codex required deep Rust type changes, Gemini CLI required an 812-line translation layer across 49 files.
 
 ## What I changed
 
@@ -23,7 +23,7 @@ Mistral Vibe's Python architecture with clean provider abstractions made this th
 
 - **`ZAIAdapter`** extending `OpenAIAdapter` (via the generic HTTP backend, not the Mistral SDK) -- normalizes tool choice (`"any"` to `"auto"`), injects thinking config and web search into payloads
 - **Configuration models** for ZAI's thinking (`enabled`/`disabled`, preserved vs cleared) and web search features
-- **`ReasoningEvent`** in the agent loop to surface GLM-4.7's chain-of-thought output with batched streaming
+- **`ReasoningEvent`** in the agent loop to surface GLM-5's chain-of-thought output with batched streaming
 - **Preserved Thinking** -- reasoning content from previous turns fed back into the next request for cache hits
 
 ## Quick install
@@ -81,7 +81,6 @@ provider = "zai-coding"
 alias = "glm-5"
 ```
 
-To use GLM-4.7 instead, set `active_model = "glm-4.7"` in your config (it's included as a built-in model).
 
 ## Features
 

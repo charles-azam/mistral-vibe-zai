@@ -98,7 +98,7 @@ function main() {
     echo "██████████████████░░"
     echo
     echo "Starting Mistral Vibe ZAI Fork installation..."
-    echo "This fork adds support for ZAI's GLM-4.7 API with preserved thinking."
+    echo "This fork adds support for ZAI's GLM-5 API with preserved thinking."
     echo
 
     check_platform
