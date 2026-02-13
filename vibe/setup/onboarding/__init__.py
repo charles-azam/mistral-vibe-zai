@@ -51,5 +51,5 @@ def run_onboarding(app: App | None = None) -> None:
             )
         case "completed":
             rprint(
-                '\nSetup complete 🎉. Run "vibe" to start using the Mistral Vibe CLI.\n'
+                '\nSetup complete 🎉. Run "vibe-zai" to start using the Vibe ZAI CLI.\n'
             )

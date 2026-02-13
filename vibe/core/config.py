@@ -506,7 +506,7 @@ class VibeConfig(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_prefix="VIBE_", case_sensitive=False, extra="ignore"
+        env_prefix="VIBE_ZAI_", case_sensitive=False, extra="ignore"
     )
 
     @property
