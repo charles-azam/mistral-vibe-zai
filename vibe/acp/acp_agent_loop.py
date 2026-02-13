@@ -77,6 +77,7 @@ from vibe.core.types import (
     ToolResultEvent,
     ToolStreamEvent,
     UserMessageEvent,
+    WebSearchEvent,
 )
 from vibe.core.utils import CancellationReason, get_user_cancellation_message
 
@@ -492,6 +493,21 @@ class VibeAcpAgentLoop(AcpAgent):
                             content=TextContentBlock(type="text", text=event.message),
                         )
                     ],
+                )
+
+            elif isinstance(event, WebSearchEvent):
+                sources_md = "\n".join(
+                    f"- [{r.title}]({r.link})"
+                    + (f" - {r.media}" if r.media else "")
+                    for r in event.results
+                )
+                yield AgentMessageChunk(
+                    session_update="agent_message_chunk",
+                    content=TextContentBlock(
+                        type="text",
+                        text=f"\n\n**Sources:**\n{sources_md}",
+                    ),
+                    field_meta={"messageId": event.message_id},
                 )
 
             elif isinstance(event, CompactStartEvent):

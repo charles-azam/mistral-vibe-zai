@@ -267,6 +267,15 @@ class LLMMessage(BaseModel):
         )
 
 
+class WebSearchResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    title: str
+    link: str
+    content: str = ""
+    media: str = ""
+    refer: str = ""
+
+
 class LLMUsage(BaseModel):
     model_config = ConfigDict(frozen=True)
     prompt_tokens: int = 0
@@ -283,13 +292,27 @@ class LLMChunk(BaseModel):
     model_config = ConfigDict(frozen=True)
     message: LLMMessage
     usage: LLMUsage | None = None
+    web_search_results: list[WebSearchResult] | None = None
 
     def __add__(self, other: LLMChunk) -> LLMChunk:
         if self.usage is None and other.usage is None:
             new_usage = None
         else:
             new_usage = (self.usage or LLMUsage()) + (other.usage or LLMUsage())
-        return LLMChunk(message=self.message + other.message, usage=new_usage)
+
+        match (self.web_search_results, other.web_search_results):
+            case (None, None):
+                merged_web_search = None
+            case (None, results) | (results, None):
+                merged_web_search = results
+            case (left, right):
+                merged_web_search = [*left, *right]
+
+        return LLMChunk(
+            message=self.message + other.message,
+            usage=new_usage,
+            web_search_results=merged_web_search,
+        )
 
 
 class BaseEvent(BaseModel, ABC):
@@ -317,6 +340,11 @@ class AssistantEvent(BaseEvent):
 
 class ReasoningEvent(BaseEvent):
     content: str
+    message_id: str | None = None
+
+
+class WebSearchEvent(BaseEvent):
+    results: list[WebSearchResult]
     message_id: str | None = None
 
 

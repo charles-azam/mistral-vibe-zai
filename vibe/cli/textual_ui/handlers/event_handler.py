@@ -4,7 +4,11 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from vibe.cli.textual_ui.widgets.compact import CompactMessage
-from vibe.cli.textual_ui.widgets.messages import AssistantMessage, ReasoningMessage
+from vibe.cli.textual_ui.widgets.messages import (
+    AssistantMessage,
+    ReasoningMessage,
+    WebSearchMessage,
+)
 from vibe.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from vibe.cli.textual_ui.widgets.tools import ToolCallMessage, ToolResultMessage
 from vibe.core.types import (
@@ -17,6 +21,7 @@ from vibe.core.types import (
     ToolResultEvent,
     ToolStreamEvent,
     UserMessageEvent,
+    WebSearchEvent,
 )
 from vibe.core.utils import TaggedText
 
@@ -63,6 +68,8 @@ class EventHandler:
                 await self._handle_compact_start()
             case CompactEndEvent():
                 await self._handle_compact_end(event)
+            case WebSearchEvent():
+                await self._handle_web_search(event)
             case UserMessageEvent():
                 pass
             case _:
@@ -136,6 +143,12 @@ class EventHandler:
         tools_collapsed = self.get_tools_collapsed()
         await self.mount_callback(
             ReasoningMessage(event.content, collapsed=tools_collapsed)
+        )
+
+    async def _handle_web_search(self, event: WebSearchEvent) -> None:
+        tools_collapsed = self.get_tools_collapsed()
+        await self.mount_callback(
+            WebSearchMessage(results=event.results, collapsed=tools_collapsed)
         )
 
     async def _handle_compact_start(self) -> None:

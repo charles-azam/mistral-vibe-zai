@@ -65,6 +65,8 @@ from vibe.core.types import (
     ToolStreamEvent,
     UserInputCallback,
     UserMessageEvent,
+    WebSearchEvent,
+    WebSearchResult,
 )
 from vibe.core.utils import (
     TOOL_ERROR_TAG,
@@ -351,9 +353,14 @@ class AgentLoop:
             async for event in self._stream_assistant_events():
                 yield event
         else:
-            assistant_event = await self._get_assistant_event()
+            assistant_event, llm_result = await self._get_assistant_event()
             if assistant_event.content:
                 yield assistant_event
+            if llm_result.web_search_results:
+                yield WebSearchEvent(
+                    results=llm_result.web_search_results,
+                    message_id=assistant_event.message_id,
+                )
 
         last_message = self.messages[-1]
 
@@ -368,17 +375,24 @@ class AgentLoop:
 
     async def _stream_assistant_events(
         self,
-    ) -> AsyncGenerator[AssistantEvent | ReasoningEvent]:
+    ) -> AsyncGenerator[AssistantEvent | ReasoningEvent | WebSearchEvent]:
         content_buffer = ""
         reasoning_buffer = ""
         chunks_with_content = 0
         chunks_with_reasoning = 0
         message_id: str | None = None
+        web_search_results: list[WebSearchResult] | None = None
         BATCH_SIZE = 5
 
         async for chunk in self._chat_streaming():
             if message_id is None:
                 message_id = chunk.message.message_id
+
+            if chunk.web_search_results:
+                if web_search_results is None:
+                    web_search_results = list(chunk.web_search_results)
+                else:
+                    web_search_results.extend(chunk.web_search_results)
 
             if chunk.message.reasoning_content:
                 if content_buffer:
@@ -418,12 +432,18 @@ class AgentLoop:
         if content_buffer:
             yield AssistantEvent(content=content_buffer, message_id=message_id)
 
-    async def _get_assistant_event(self) -> AssistantEvent:
+        if web_search_results:
+            yield WebSearchEvent(
+                results=web_search_results, message_id=message_id
+            )
+
+    async def _get_assistant_event(self) -> tuple[AssistantEvent, LLMChunk]:
         llm_result = await self._chat()
-        return AssistantEvent(
+        event = AssistantEvent(
             content=llm_result.message.content or "",
             message_id=llm_result.message.message_id,
         )
+        return event, llm_result
 
     async def _handle_tool_calls(
         self, resolved: ResolvedMessage

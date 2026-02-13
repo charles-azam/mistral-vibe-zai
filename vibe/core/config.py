@@ -357,6 +357,7 @@ DEFAULT_PROVIDERS = [
         api_style="zai",
         backend=Backend.GENERIC,
         thinking=ZAIThinkingConfig(),
+        web_search=ZAIWebSearchConfig(),
     ),
     ProviderConfig(
         name="zai",

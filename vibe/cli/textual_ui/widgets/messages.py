@@ -9,6 +9,7 @@ from textual.widgets._markdown import MarkdownStream
 
 from vibe.cli.textual_ui.widgets.no_markup_static import NoMarkupStatic
 from vibe.cli.textual_ui.widgets.spinner import SpinnerMixin, SpinnerType
+from vibe.core.types import WebSearchResult
 
 
 class NonSelectableStatic(NoMarkupStatic):
@@ -304,3 +305,52 @@ class WarningMessage(Static):
             if self._show_border:
                 yield ExpandingBorder(classes="warning-border")
             yield NoMarkupStatic(self._message, classes="warning-content")
+
+
+class WebSearchMessage(Static):
+    def __init__(
+        self, results: list[WebSearchResult], collapsed: bool = True
+    ) -> None:
+        super().__init__()
+        self.add_class("reasoning-message")
+        self._results = results
+        self.collapsed = collapsed
+
+    def _build_sources_markdown(self) -> str:
+        lines: list[str] = []
+        for r in self._results:
+            label = f"[{r.title}]({r.link})"
+            if r.media:
+                label += f" - {r.media}"
+            lines.append(f"- {label}")
+        return "\n".join(lines)
+
+    def compose(self) -> ComposeResult:
+        count = len(self._results)
+        header_text = f"Web Search ({count} source{'s' if count != 1 else ''})"
+
+        with Vertical(classes="reasoning-message-wrapper"):
+            with Horizontal(classes="reasoning-message-header"):
+                yield NonSelectableStatic(
+                    "~ ", classes="reasoning-indicator"
+                )
+                yield NoMarkupStatic(
+                    header_text, classes="reasoning-collapsed-text"
+                )
+                yield NonSelectableStatic(
+                    "▶" if self.collapsed else "▼",
+                    classes="reasoning-triangle",
+                )
+            md = Markdown(
+                self._build_sources_markdown(),
+                classes="reasoning-message-content",
+            )
+            md.display = not self.collapsed
+            yield md
+
+    async def on_click(self) -> None:
+        self.collapsed = not self.collapsed
+        triangle = self.query_one(".reasoning-triangle", Static)
+        triangle.update("▶" if self.collapsed else "▼")
+        md = self.query_one(".reasoning-message-content", Markdown)
+        md.display = not self.collapsed

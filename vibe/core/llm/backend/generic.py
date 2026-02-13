@@ -16,6 +16,7 @@ from vibe.core.types import (
     LLMUsage,
     Role,
     StrToolChoice,
+    WebSearchResult,
 )
 from vibe.core.utils import async_generator_retry, async_retry
 
@@ -267,6 +268,28 @@ class ZAIAdapter(OpenAIAdapter):
             payload["tools"] = tools_payload
 
         tools_payload.append({"type": "web_search", "web_search": tool_payload})
+
+    @staticmethod
+    def _parse_web_search_results(
+        data: dict[str, Any],
+    ) -> list[WebSearchResult] | None:
+        raw = data.get("web_search")
+        if not raw or not isinstance(raw, list):
+            return None
+        return [WebSearchResult.model_validate(item) for item in raw]
+
+    def parse_response(
+        self, data: dict[str, Any], provider: ProviderConfig
+    ) -> LLMChunk:
+        chunk = super().parse_response(data, provider)
+        web_search_results = self._parse_web_search_results(data)
+        if web_search_results:
+            return LLMChunk(
+                message=chunk.message,
+                usage=chunk.usage,
+                web_search_results=web_search_results,
+            )
+        return chunk
 
     def prepare_request(
         self,
